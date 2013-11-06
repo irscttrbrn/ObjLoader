@@ -1,6 +1,12 @@
 #ifndef OBJLOADER_H__
 #define OBJLOADER_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define MAX_STRING_LENGTH 256
+
 /*!
 ** A 3d int vector
 */
@@ -28,6 +34,24 @@ typedef struct
 }
 ObjVector3F;
  
+/*!
+** A surface's material.
+*/
+typedef struct
+{
+    char name[MAX_STRING_LENGTH];
+    ObjVector3F ambient;
+    ObjVector3F diffuse;
+    ObjVector3F specular;
+
+    char ambientTex[MAX_STRING_LENGTH];
+    char diffuseTex[MAX_STRING_LENGTH];
+    char specularTex[MAX_STRING_LENGTH];
+
+    float shininess;
+}
+ObjMaterial;
+
 /*!
 ** A handle to a face.
 */
@@ -89,13 +113,12 @@ void ObjGroupGetNumFaces(
     int* numFaces
 );
 
-/*!
-** Gets the name for a group.
+/*! Gets the name for a group.
 **
-** @param group Group being queried.
-** @param length Actual length of the name (without '\0').
-** @param name Char array for storing the name of the [group].
-** @param maxLength Length of the [name] array.
+**  @param group Group being queried.
+**  @param length Actual length of the name (without '\0').
+**  @param name Char array for storing the name of the [group].
+**  @param maxLength Length of the [name] array.
 */
 void ObjGroupGetName(
     ObjGroupPtr group,
@@ -163,6 +186,30 @@ void ObjFileRelease(
     ObjFilePtr* file
 );
 
+/*! 
+**  Gets the number of materials in the ObjFile.
+**  
+**  @param file Pointer to the ObjFile.
+**  @param numMaterials [out] Number of the materials contained in the ObjFile.
+*/
+void ObjFileGetNumMaterials(
+    ObjFilePtr file,
+    int* numMaterials
+);
+
+/*!
+**  Gets a copy of a material from the ObjFile.
+**
+**  @param file Pointer to the ObjFile.
+**  @param material [out] Memory for storing the queried material
+**  @param i Index of the queried material
+*/
+void ObjFileGetMaterial(
+    ObjFilePtr file,
+    ObjMaterial* material,
+    int i
+);
+
 /*!
 ** Gets the number of positions in the .obj file.
 */
@@ -216,6 +263,9 @@ void ObjFileGetTexCoord(
 
 /*!
 ** Gets the number of faces in the .obj file.
+**
+** @param file [in] A ObjFile handle.
+** @param numFaces [out] The total number of faces the obj file stores.
 */
 void ObjFileGetNumFaces(
     ObjFilePtr file,
@@ -247,5 +297,9 @@ void ObjFileGetObject(
     ObjObjectPtr* object,
     int i
 );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* end of include guard: OBJLOADER_H__ */

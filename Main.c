@@ -81,12 +81,15 @@ static void dump(ObjFilePtr file)
                 ObjVector3I posIndices;
                 ObjVector3I nrmIndices;
                 ObjVector3I tcIndices;
+                int mat = 0;
 
                 ObjFaceGetPositionIndices(face, &posIndices);
                 ObjFaceGetNormalIndices(face, &nrmIndices);
                 ObjFaceGetTexCoordIndices(face, &tcIndices);
+                ObjFaceGetMaterialIndex(face, &mat);
 
-                printf("\t\t\t%d/%d/%d %d/%d/%d %d/%d/%d\n", 
+
+                printf("\t\t\t%d/%d/%d %d/%d/%d %d/%d/%d mat: %d\n", 
                     posIndices.x,
                     tcIndices.x,
                     nrmIndices.x,
@@ -95,12 +98,51 @@ static void dump(ObjFilePtr file)
                     nrmIndices.y,
                     posIndices.z,
                     tcIndices.z,
-                    nrmIndices.z
+                    nrmIndices.z,
+                    mat
                 );
             }
         }
     }
 
+    // dump materials
+    printf("Material\n");
+    int numMaterials;
+    ObjMaterial material;
+
+    ObjFileGetNumMaterials(file, &numMaterials);
+
+    for (int i = 0; i < numMaterials; i++) 
+    {
+        ObjFileGetMaterial(file, &material, i);
+        printf("Name: %s\n", material.name);
+        printf("shininess: %f \n", material.shininess);
+        
+        printf(
+            "Ka: [%f %f %f]\n", 
+            material.ambient.x, 
+            material.ambient.y, 
+            material.ambient.z
+        );
+        
+        printf(
+            "Kd: [%f %f %f]\n", 
+            material.diffuse.x, 
+            material.diffuse.y, 
+            material.diffuse.z
+        );
+        
+        printf(
+            "Ks: [%f %f %f]\n", 
+            material.specular.x, 
+            material.specular.y, 
+            material.specular.z
+        );
+
+        printf("map_Ka %s\n", material.ambientTex);
+        printf("map_Kd %s\n", material.diffuseTex);
+        printf("map_Ks %s\n", material.specularTex);
+    }
 }
 
 

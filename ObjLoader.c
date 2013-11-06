@@ -1,11 +1,10 @@
-//------------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "ObjLoader.h"
-//------------------------------------------------------------------------------
+
 #define MAX_STRING_LENGTH 256
-//------------------------------------------------------------------------------ THE ACTUAL STRUCTS
+
 typedef struct _ObjFace
 {
     ObjVector3I positionIndices;
@@ -14,7 +13,7 @@ typedef struct _ObjFace
     int materialIndex;
 }
 ObjFace;
-//------------------------------------------------------------------------------
+
 typedef struct _ObjGroup
 {
     char name[MAX_STRING_LENGTH];
@@ -22,7 +21,7 @@ typedef struct _ObjGroup
     int numFaces;
 }
 ObjGroup;
-//------------------------------------------------------------------------------
+
 typedef struct _ObjObject
 {
     char name[MAX_STRING_LENGTH];
@@ -30,7 +29,7 @@ typedef struct _ObjObject
     int numGroups;
 }
 ObjObject;
-//------------------------------------------------------------------------------
+
 typedef struct _ObjFile
 {
     char name[256];
@@ -38,6 +37,8 @@ typedef struct _ObjFile
     ObjVector3F* positions;
     ObjVector3F* normals;
     ObjVector2F* texCoords;
+    ObjMaterial* materials;
+
     ObjObject* objects;
     ObjGroup* groups;
     ObjFace* faces;
@@ -48,12 +49,14 @@ typedef struct _ObjFile
     int numObjects;
     int numGroups;
     int numFaces;
+	int numMaterials;
 }
 ObjFile;
-//------------------------------------------------------------------------------ GLOBAL LOADER STATE
+
 static ObjObject* currentObject = NULL;
 static ObjGroup* currentGroup = NULL;
-//------------------------------------------------------------------------------ FILE PRIVATE HELPER FCTS DECLARATION
+static int currentMaterial = 0;
+
 static ObjFile* createObjFile(const char* filename);
 static void resetGlobalState();
 static void prepareForProcessing(ObjFile* file);
@@ -65,7 +68,9 @@ static void addTexCoord(ObjFile* file, const char* line);
 static void addFace(ObjFile* file, const char* line);
 static void addObject(ObjFile* file, const char* line);
 static void addGroup(ObjFile* file, const char* line);
-//------------------------------------------------------------------------------ PUBLIC INTERFACE'S DEFINITION
+static void readMtlFile(ObjFile* file, const char* line);
+static void initMaterial(ObjMaterial* material);
+
 void ObjFileLoad(
     ObjFilePtr* file, 
     const char* filename
@@ -145,7 +150,52 @@ void ObjFileLoad(
     // return result
     *file = objFile;
 }
-//------------------------------------------------------------------------------
+
+void ObjFileRelease(
+    ObjFilePtr* file
+)
+{
+    ObjFile* f = (ObjFile*)(*file);
+    free(f);
+
+    free(f->positions);
+    free(f->normals);
+    free(f->texCoords);
+    free(f->faces);
+    free(f->objects);
+    free(f->groups);
+    free(f);
+
+    *file = NULL;
+}
+
+void ObjFileGetNumMaterials(
+    ObjFilePtr file,
+    int* numMaterials
+)
+{
+    if (file == NULL || numMaterials == NULL) 
+    {
+        return;
+    }
+
+    *numMaterials = file->numMaterials;
+}
+
+void ObjFileGetMaterial(
+    ObjFilePtr file,
+    ObjMaterial* material,
+    int i
+)
+{
+    if (file ==  NULL || material == NULL || i >= file->numMaterials) 
+    {
+        return;
+    }
+
+    *material = file->materials[i];
+}
+
 void ObjFileGetNumPositions(
     ObjFilePtr file, 
     int* numPositions
@@ -153,7 +203,7 @@ void ObjFileGetNumPositions(
 {
     *numPositions = file->numPositions;
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetPosition(
     ObjFilePtr file,
     ObjVector3F* position,
@@ -167,7 +217,7 @@ void ObjFileGetPosition(
 
     *position = file->positions[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetNumNormals(
     ObjFilePtr file, 
     int* numNormals
@@ -180,7 +230,7 @@ void ObjFileGetNumNormals(
 
     *numNormals = file->numNormals;
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetNormal(
     ObjFilePtr file,
     ObjVector3F* normal,
@@ -194,7 +244,7 @@ void ObjFileGetNormal(
 
     *normal = file->normals[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetNumTexCoords(
     ObjFilePtr file, 
     int* numTexCoords
@@ -207,7 +257,7 @@ void ObjFileGetNumTexCoords(
 
     *numTexCoords = file->numTexCoords;
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetTexCoord(
     ObjFilePtr file,
     ObjVector2F* texCoord,
@@ -221,7 +271,7 @@ void ObjFileGetTexCoord(
 
     *texCoord = file->texCoords[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetNumFaces(
     ObjFilePtr file,
     int* numFaces
@@ -234,7 +284,7 @@ void ObjFileGetNumFaces(
 
     *numFaces = file->numFaces;   
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetFace(
     ObjFilePtr file,
     ObjFacePtr* face,
@@ -248,7 +298,7 @@ void ObjFileGetFace(
     
     *face = &file->faces[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetNumObjects(
     ObjFilePtr file,
     int* numObjects
@@ -261,7 +311,7 @@ void ObjFileGetNumObjects(
 
     *numObjects = file->numObjects;
 }
-//------------------------------------------------------------------------------
+
 void ObjFileGetObject(
     ObjFilePtr file,
     ObjObjectPtr* object,
@@ -275,7 +325,7 @@ void ObjFileGetObject(
 
     *object = &file->objects[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjObjectGetName(
     ObjObjectPtr object,
     int* length,
@@ -307,7 +357,7 @@ void ObjObjectGetName(
 
     strcpy(name, object->name);
 }
-//------------------------------------------------------------------------------
+
 void ObjObjectGetGroup(
     ObjObjectPtr object,
     ObjGroupPtr* group,
@@ -321,7 +371,7 @@ void ObjObjectGetGroup(
 
     *group = &object->groups[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjObjectGetNumGroups(
     ObjObjectPtr object,
     int* numGroups
@@ -334,7 +384,7 @@ void ObjObjectGetNumGroups(
 
     *numGroups = object->numGroups;
 }
-//------------------------------------------------------------------------------
+
 void ObjFaceGetPositionIndices(
     ObjFacePtr face, 
     ObjVector3I* indices 
@@ -346,7 +396,7 @@ void ObjFaceGetPositionIndices(
     }
     memcpy(indices, &face->positionIndices, sizeof(ObjVector3I));
 }
-//------------------------------------------------------------------------------
+
 void ObjFaceGetNormalIndices(
     ObjFacePtr face, 
     ObjVector3I* indices 
@@ -358,7 +408,7 @@ void ObjFaceGetNormalIndices(
     }
     memcpy(indices, &face->normalIndices, sizeof(ObjVector3I));
 }
-//------------------------------------------------------------------------------
+
 void ObjFaceGetTexCoordIndices(
     ObjFacePtr face, 
     ObjVector3I* indices 
@@ -371,7 +421,7 @@ void ObjFaceGetTexCoordIndices(
 
     memcpy(indices, &face->texCoordIndices, sizeof(ObjVector3I));
 }
-//------------------------------------------------------------------------------
+
 void ObjFaceGetMaterialIndex(
     ObjFacePtr face,
     int* materialIndex
@@ -384,7 +434,7 @@ void ObjFaceGetMaterialIndex(
 
     *materialIndex = face->materialIndex;
 }
-//------------------------------------------------------------------------------
+
 void ObjGroupGetFace(
     ObjGroupPtr group,
     ObjFacePtr* face,
@@ -398,7 +448,7 @@ void ObjGroupGetFace(
 
     *face = &group->faces[i];
 }
-//------------------------------------------------------------------------------
+
 void ObjGroupGetNumFaces(
     ObjGroupPtr group,
     int* numFaces
@@ -411,7 +461,7 @@ void ObjGroupGetNumFaces(
 
     *numFaces = group->numFaces;
 }
-//------------------------------------------------------------------------------
+
 void ObjGroupGetName(
     ObjGroupPtr group,
     int* length,
@@ -443,7 +493,7 @@ void ObjGroupGetName(
 
     strcpy(name, group->name);    
 }
-//------------------------------------------------------------------------------ FILE PRIVATE HELPER FCTS DEFINITION
+
 ObjFile* createObjFile(const char* filename)
 {
     // creates and inits an ObjFile
@@ -470,6 +520,7 @@ ObjFile* createObjFile(const char* filename)
     objFile->objects = NULL;
     objFile->groups = NULL;
     objFile->faces = NULL;
+    objFile->materials = NULL;
     
     objFile->numPositions = 0;
     objFile->numNormals = 0;
@@ -477,10 +528,15 @@ ObjFile* createObjFile(const char* filename)
     objFile->numObjects = 0;
     objFile->numGroups = 0;
     objFile->numFaces = 0;
+    objFile->numMaterials = 0;
+
+    objFile->materials = (ObjMaterial*)malloc(sizeof(ObjMaterial));
+    objFile->numMaterials = 1;
+    initMaterial(&objFile->materials[0]);
 
     return objFile;
 }
-//------------------------------------------------------------------------------
+
 void prepareForProcessing(ObjFile* file)
 {
     // set the zero's element of [positions] to the zero vector
@@ -519,13 +575,17 @@ void prepareForProcessing(ObjFile* file)
     file->numObjects++;
     file->numGroups++;
 }
-//------------------------------------------------------------------------------
+
 void updateFileInfo(ObjFile* file, const char* line)
 {
     // counts the number of groups, objectes, faces, positions, normals, 
     // texcoords 
 
     // TODO: trim [line]
+    if (strstr(line, "mtllib") == line)
+    {
+        readMtlFile(file, line);        
+    }
 
     if (line[0] == 'v' && line[1] == ' ')
     {
@@ -564,7 +624,27 @@ void updateFileInfo(ObjFile* file, const char* line)
     }
 
 }
-//------------------------------------------------------------------------------
+
+void setCurrentMaterial(ObjFile* file, const char* line)
+{
+    char name[MAX_STRING_LENGTH];
+
+    if (sscanf(line, "usemtl %s", name) != 1)
+    {
+        return;
+    }
+
+    int i = 0;
+
+    for (i = 0; i < file->numMaterials; ++i)
+    {
+        if (strcmp(name, file->materials[i].name) == 0)
+        {
+            currentMaterial = i;
+        }
+    }
+}
+
 void updateFile(ObjFile* file, const char* line)
 {
     // counts the number of groups, objectes, faces, positions, normals, 
@@ -608,8 +688,13 @@ void updateFile(ObjFile* file, const char* line)
         return;
     }
 
+    if (strstr(line, "usemtl") == line) 
+    {
+        setCurrentMaterial(file, line);
+        return;
+    }
 }
-//------------------------------------------------------------------------------
+
 void addPosition(ObjFile* file, const char* line)
 {
     ObjVector3F v;
@@ -623,7 +708,7 @@ void addPosition(ObjFile* file, const char* line)
     file->positions[file->numPositions] = v;
     file->numPositions++;
 }
-//------------------------------------------------------------------------------
+
 void addNormal(ObjFile* file, const char* line)
 {
     ObjVector3F v;
@@ -637,7 +722,7 @@ void addNormal(ObjFile* file, const char* line)
     file->normals[file->numNormals] = v;
     file->numNormals++;
 }
-//------------------------------------------------------------------------------
+
 void addTexCoord(ObjFile* file, const char* line)
 {
     ObjVector2F v;
@@ -651,11 +736,12 @@ void addTexCoord(ObjFile* file, const char* line)
     file->texCoords[file->numTexCoords] = v;
     file->numTexCoords++;    
 }
-//------------------------------------------------------------------------------
+
 void addFace(ObjFile* file, const char* line)
 {
     ObjFace face;
     memset(&face, 0, sizeof(ObjFace));
+    face.materialIndex = currentMaterial;
 
     // case: f [p] [p] [p]
     int n = sscanf(
@@ -736,9 +822,8 @@ void addFace(ObjFile* file, const char* line)
         currentGroup->numFaces++;
         return;
     }  
-
 }
-//------------------------------------------------------------------------------
+
 void addObject(ObjFile* file, const char* line)
 {
     char name[MAX_STRING_LENGTH];
@@ -765,7 +850,7 @@ void addObject(ObjFile* file, const char* line)
     file->numGroups++;
 
 }
-//------------------------------------------------------------------------------
+
 void addGroup(ObjFile* file, const char* line)
 {
     char name[MAX_STRING_LENGTH];
@@ -784,15 +869,236 @@ void addGroup(ObjFile* file, const char* line)
     currentGroup = &file->groups[file->numGroups];
     file->numGroups++;
 }
-//------------------------------------------------------------------------------
+
 void resetGlobalState()
 {
+    currentMaterial = 0;
     currentObject = NULL;
     currentGroup = NULL;
 }
-//------------------------------------------------------------------------------
 
+/* count the materials int a file */
+int countMaterials(FILE* file)
+{
+    rewind(file);
+    int count = 0;
+    char line[MAX_STRING_LENGTH];   
+ 
+    while (NULL != fgets(line, MAX_STRING_LENGTH, file))
+    {
+        if (strstr(line, "newmtl") == line)
+        {
+            count++;
+        }    
+    }
 
+    rewind(file);
 
+    return count;
+}
 
+void initMaterial(ObjMaterial* material)
+{
+    strcpy(material->name, "");
+    material->ambient.x = 0.0f;
+    material->ambient.y = 0.0f;
+    material->ambient.z = 0.0f;
+    material->diffuse.x = 0.0f;
+    material->diffuse.y = 0.0f;
+    material->diffuse.z = 0.0f;
+    material->specular.x = 0.0f;
+    material->specular.y = 0.0f;
+    material->specular.z = 0.0f;
+    material->shininess = 0.0f;
+    strcpy(material->ambientTex, "");
+    strcpy(material->diffuseTex, "");
+    strcpy(material->specularTex, "");    
+}
 
+void readMaterials(ObjFile* file, FILE* f)
+{
+    rewind(f);
+
+	char line[MAX_STRING_LENGTH];
+ 	
+    // first material is a default material
+    initMaterial(&file->materials[0]);
+
+	file->numMaterials = 1;
+
+	while (NULL != fgets(line, MAX_STRING_LENGTH, f))
+	{
+		char name[MAX_STRING_LENGTH];		
+
+        // read in the material name
+		if (strstr(line, "newmtl") == line) 
+		{
+			file->numMaterials++;		
+
+            // initialize the new material
+            initMaterial(&file->materials[file->numMaterials - 1]);
+
+            // copy the name from the line
+		   	if (sscanf(line, "newmtl %s", name) == 1)
+			{
+				strcpy(file->materials[file->numMaterials - 1].name, name);
+			}
+		}
+
+		// read in ambient 
+		if (strstr(line, "Ka") == line) 
+		{
+			ObjVector3F ambient;
+
+			int n = sscanf(
+					line, 
+					"Ka %f %f %f",
+					&ambient.x, 
+					&ambient.y, 
+					&ambient.z
+				);
+
+		    if (n == 3) 
+		    {
+		       file->materials[file->numMaterials - 1].ambient = ambient;  
+		    }
+		}
+
+		// read diffuse
+		if (strstr(line, "Kd") == line) 
+		{
+			ObjVector3F diffuse;
+
+			int n = sscanf(
+					line, 
+					"Kd %f %f %f",
+					&diffuse.x, 
+					&diffuse.y, 
+					&diffuse.z
+				);
+
+		    if (n == 3) 
+		    {
+		        file->materials[file->numMaterials - 1].diffuse = diffuse;  
+		    }
+		}
+		
+		// read specular
+		if (strstr(line, "Ks") == line) 
+		{
+			ObjVector3F specular;
+
+			int n = sscanf(
+					line, 
+					"Ks %f %f %f",
+					&specular.x, 
+					&specular.y, 
+					&specular.z
+				);
+
+		    if (n == 3) 
+		    {
+		       file->materials[file->numMaterials - 1].specular = specular;  
+		    }
+		}
+		
+		// read shininess
+		if (strstr(line, "Ns") == line) 
+		{
+			float shininess;
+
+		    if (sscanf(line, "Ns %f", &shininess) == 1) 
+		    {
+		        file->materials[file->numMaterials - 1].shininess = shininess; 
+		    }
+		}
+
+		// read ambient tex
+		if (strstr(line, "map_Ka") == line) 
+		{
+			char name[MAX_STRING_LENGTH];			
+
+		    if (sscanf(line, "map_Ka %s", name) == 1) 
+		    {
+		        strcpy(
+					file->materials[file->numMaterials - 1].ambientTex, 
+					name
+				);
+		    }
+		}
+
+		// read diffuse tex
+		if (strstr(line, "map_Kd") == line) 
+		{
+			char name[MAX_STRING_LENGTH];
+
+		    if (sscanf(line, "map_Kd %s", name) == 1) 
+		    {
+		        strcpy(
+                    file->materials[file->numMaterials - 1].diffuseTex, 
+                    name
+                ); 
+		    }
+		}
+
+		// read specular tex
+		if (strstr(line, "map_Ks") == line) 
+		{
+		    char name[MAX_STRING_LENGTH];
+
+			if (sscanf(line, "map_Ks %s", name) == 1) 
+			{
+			    strcpy(
+					file->materials[file->numMaterials - 1].specularTex, 
+					name
+				);
+			}
+		}
+		
+	}
+}
+
+void readMtlFile(ObjFile* file, const char* line)
+{
+    // add the materials of the material file that is identified by line to
+    // our ObjFile.
+ 
+    // if materials have been allocated already free them and replace them
+    if (file->materials != NULL)
+    {
+        free(file->materials);
+        file->numMaterials = 0;
+    }
+
+    // get the name of the material file from the line
+    char name[MAX_STRING_LENGTH];
+    int n = sscanf(line, "mtllib %s", name);
+    printf("%s\n", name);
+    
+    // return if name was not found
+    if (n != 1) 
+    {
+        return;
+    }
+
+    // open the file
+    FILE* f;
+    f = fopen(name, "r");
+
+    if (f == NULL)
+    {
+        return;
+    }
+  
+    // go through the file and count the number of material 
+    int matCount = countMaterials(f);
+
+    // alloc memory for material int the ObjFile
+    file->materials = (ObjMaterial*)malloc(sizeof(ObjMaterial)*(matCount + 1));
+
+    // actually read int the materials
+    readMaterials(file, f);    
+
+    // clean up
+    fclose(f);
+}
