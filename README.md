@@ -1,7 +1,8 @@
-# A minimal Wavefront .obj loader #
+# A minimal Wavefront .obj loader#
 
 ## Features ##
 - minimal
+- written in C
 - reads positions, normals, texture coordinates
 - reads in faces
     - groups them into objects and then groups
