@@ -182,6 +182,10 @@ void ObjFileLoad(
 /*!
 **  Loads an .obj file referenced by a filename and a path.
 **
+**  Notes:
+**  - The .mtl file that is associated with the .obj file needs to be in the 
+**    same folder as the .obj file.
+**
 **  @param file [out] A reference to  the loaded .obj file.
 **  @param filename [in] The file name of the .obj file.
 **  @param path [in] The path to the .obj file.

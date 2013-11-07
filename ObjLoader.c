@@ -88,7 +88,10 @@ void ObjFileLoadWithPath(
 {
     resetGlobalState();
     
-    path = filepath;
+    if (strcmp(filepath, "") != 0)
+    {
+        path = filepath;
+    }
 
     parse(file, filename);
 }
