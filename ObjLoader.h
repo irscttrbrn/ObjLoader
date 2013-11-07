@@ -144,6 +144,21 @@ void ObjObjectGetGroup(
 );
 
 /*!
+** Gets an group referenced by its name.
+**
+** @param object [in] A ObjObject handle.
+** @param group [out] A handle to the group. If the method fails object is set
+**                    to NULL.
+** @param [in] The name of the group that is queried.
+*/
+void ObjObjectGetGroupWithName(
+    ObjObjectPtr object,
+    ObjGroupPtr* group,
+    const char* name
+);
+
+
+/*!
 ** Gets the number of groups for an object.
 */
 void ObjObjectGetNumGroups(
@@ -313,6 +328,20 @@ void ObjFileGetObject(
     ObjFilePtr file,
     ObjObjectPtr* object,
     int i
+);
+
+/*!
+** Gets an object referenced by its name.
+**
+** @param file [in] A ObjFile handle.
+** @param object [out] A handle to the object. If the method fails object is set
+**                     to NULL.
+** @param [in] The name of the object that is queried.
+*/
+void ObjFileGetObjectWithName(
+    ObjFilePtr file,
+    ObjObjectPtr* object,
+    const char* name
 );
 
 #ifdef __cplusplus

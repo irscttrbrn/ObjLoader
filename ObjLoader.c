@@ -279,6 +279,30 @@ void ObjFileGetObject(
     *object = &file->objects[i];
 }
 
+void ObjFileGetObjectWithName(
+    ObjFilePtr file,
+    ObjObjectPtr* object,
+    const char* name
+)
+{
+    int i = 0;
+
+    if (file == NULL || object == NULL || i >= file->numObjects)
+    {
+        return;
+    }
+
+    for (i = 0; i < file->numObjects; i++)
+    {
+        if (strcmp(file->objects[i].name, name) == 0)
+        {
+            *object = & file->objects[i];
+        }
+    }
+
+    *object = NULL;
+}
+
 void ObjObjectGetName(
     ObjObjectPtr object,
     int* length,
@@ -323,6 +347,30 @@ void ObjObjectGetGroup(
     }
 
     *group = &object->groups[i];
+}
+
+void ObjObjectGetGroupWithName(
+    ObjObjectPtr object,
+    ObjGroupPtr* group,
+    const char* name
+)
+{
+    int i = 0;
+
+    if (object == NULL || group == NULL || name == NULL)
+    {
+        return;
+    }
+
+    for (i = 0; i < object->numGroups; i++)
+    {
+        if (strcmp(object->groups[i].name, name) == 0)
+        {
+            *group = &object->groups[i];
+        }
+    }
+
+    *group = NULL;
 }
 
 void ObjObjectGetNumGroups(
