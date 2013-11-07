@@ -110,7 +110,6 @@ void ObjFileRelease(
 )
 {
     ObjFile* f = (ObjFile*)(*file);
-    free(f);
 
     free(f->positions);
     free(f->normals);
@@ -620,7 +619,7 @@ void prepareForProcessing(ObjFile* file)
     // add a default object to the object file
     strcpy(file->objects[0].name, "");
     file->objects[0].groups = &file->groups[0];
-    file->objects[0].numGroups++;
+    file->objects[0].numGroups = 1;
     currentObject = &file->objects[0];
 
     strcpy(file->groups[0].name, "");

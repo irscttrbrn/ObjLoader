@@ -20,3 +20,4 @@
 - maybe support multiple mtl files
 - maybe save .obj files
 - trim line
+- add error codes
