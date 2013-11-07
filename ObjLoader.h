@@ -180,6 +180,19 @@ void ObjFileLoad(
 );
 
 /*!
+**  Loads an .obj file referenced by a filename and a path.
+**
+**  @param file [out] A reference to  the loaded .obj file.
+**  @param filename [in] The file name of the .obj file.
+**  @param path [in] The path to the .obj file.
+*/
+void ObjFileLoadWithPath(
+    ObjFilePtr* file,
+    const char* filename,
+    const char* path
+);
+
+/*!
 ** Releases an .obj file.
 */
 void ObjFileRelease(

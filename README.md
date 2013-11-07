@@ -19,3 +19,4 @@
 - add bump maps as material attribute
 - maybe support multiple mtl files
 - maybe save .obj files
+- trim line

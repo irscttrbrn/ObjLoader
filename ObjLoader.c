@@ -53,9 +53,16 @@ typedef struct _ObjFile
 }
 ObjFile;
 
+/*
+** The global state of the loader. It holds the current object and group,
+** that are read in, as well as the currently set material. Also, it holds
+** the path to be read in .obj file. The global state should be reset at the
+** beginning of each [ObjFileLoad] or [ObjFileLoadWithPath] call.
+*/
 static ObjObject* currentObject = NULL;
 static ObjGroup* currentGroup = NULL;
 static int currentMaterial = 0;
+static const char* path = NULL;
 
 static ObjFile* createObjFile(const char* filename);
 static void resetGlobalState();
@@ -70,6 +77,21 @@ static void addObject(ObjFile* file, const char* line);
 static void addGroup(ObjFile* file, const char* line);
 static void readMtlFile(ObjFile* file, const char* line);
 static void initMaterial(ObjMaterial* material);
+static char* trimBeginning(const char* string);
+static void parse(ObjFilePtr* file, const char* filename);
+
+void ObjFileLoadWithPath(
+    ObjFilePtr* file,
+    const char* filename,
+    const char* filepath
+)
+{
+    resetGlobalState();
+    
+    path = filepath;
+
+    parse(file, filename);
+}
 
 void ObjFileLoad(
     ObjFilePtr* file, 
@@ -77,78 +99,7 @@ void ObjFileLoad(
 )
 {
     resetGlobalState();
-
-    // expect the worst
-    *file = NULL;
-
-    // open the .obj file
-    FILE* f;
-    f = fopen(filename, "r");
-    
-    if (NULL == f)
-    {
-        return;
-    }
-
-    // create the ObjFile object.
-    ObjFile* objFile = createObjFile(filename);
-
-    if (NULL == objFile)
-    {
-        return;
-    }
-
-    // get neccessary information about the file
-
-    // until the end of the file, read the file in line by line
-    char line[MAX_STRING_LENGTH];
-    
-    while (NULL != fgets(line, MAX_STRING_LENGTH, f))
-    {
-        updateFileInfo(objFile, line);
-    }
-
-    // alloc memory for positions, normals, texcoords, groups, faces and objects // TODO: check if all allocations
-                                                                                 //       succeed
-    objFile->positions = (ObjVector3F*)malloc(
-            sizeof(ObjVector3F)*(objFile->numPositions + 1)
-        );
-
-    objFile->normals = (ObjVector3F*)malloc(
-            sizeof(ObjVector3F)*(objFile->numNormals + 1)
-        );
-
-    objFile->texCoords = (ObjVector2F*)malloc(
-            sizeof(ObjVector2F)*(objFile->numTexCoords + 1)
-        );
-
-    if (objFile->numFaces)
-    {
-        objFile->faces = (ObjFace*)malloc(sizeof(ObjFace)*objFile->numFaces);
-    }
-
-    objFile->objects = (ObjObject*)malloc(
-            sizeof(ObjObject)*(objFile->numObjects + 1)
-        );
-
-    objFile->groups = (ObjGroup*)malloc(
-            sizeof(ObjGroup)*(objFile->numObjects + 1 + objFile->numGroups)
-        );
-
-    // once again iterate through the file and copy the data
-    rewind(f);
-    prepareForProcessing(objFile);
-
-    while (NULL != fgets(line, MAX_STRING_LENGTH, f))
-    {
-        updateFile(objFile, line);
-    }    
-
-    // clean up
-    fclose(f);
-
-    // return result
-    *file = objFile;
+    parse(file, filename);   
 }
 
 void ObjFileRelease(
@@ -537,6 +488,107 @@ ObjFile* createObjFile(const char* filename)
     return objFile;
 }
 
+void parse(    
+    ObjFilePtr* file, 
+    const char* filename
+)
+{
+    // expect the worst
+    *file = NULL;
+
+    char fullname[MAX_STRING_LENGTH];
+
+    /* if a path was given include it in the full file name */
+    if (path == NULL)
+    {
+        strcpy(fullname, filename);
+    }
+    else
+    {
+        fullname[0] = '\0';
+        strcat(fullname, path);
+
+        int len = strlen(fullname);
+
+        if (fullname[len - 1] != '/')
+        {
+            fullname[len] = '/';
+            fullname[len + 1] = '\0';
+        }
+
+        strcat(fullname, filename);
+    }
+
+    // open the .obj file
+    FILE* f;
+    f = fopen(fullname, "r");
+    
+    if (NULL == f)
+    {
+        return;
+    }
+
+    // create the ObjFile object.
+    ObjFile* objFile = createObjFile(filename);
+
+    if (NULL == objFile)
+    {
+        return;
+    }
+
+    // get neccessary information about the file
+
+    // until the end of the file, read the file in line by line
+    char line[MAX_STRING_LENGTH];
+    
+    while (NULL != fgets(line, MAX_STRING_LENGTH, f))
+    {
+        updateFileInfo(objFile, line);
+    }
+
+    // alloc memory for positions, normals, texcoords, groups, faces and objects // TODO: check if all allocations
+                                                                                 //       succeed
+    objFile->positions = (ObjVector3F*)malloc(
+            sizeof(ObjVector3F)*(objFile->numPositions + 1)
+        );
+
+    objFile->normals = (ObjVector3F*)malloc(
+            sizeof(ObjVector3F)*(objFile->numNormals + 1)
+        );
+
+    objFile->texCoords = (ObjVector2F*)malloc(
+            sizeof(ObjVector2F)*(objFile->numTexCoords + 1)
+        );
+
+    if (objFile->numFaces)
+    {
+        objFile->faces = (ObjFace*)malloc(sizeof(ObjFace)*objFile->numFaces);
+    }
+
+    objFile->objects = (ObjObject*)malloc(
+            sizeof(ObjObject)*(objFile->numObjects + 1)
+        );
+
+    objFile->groups = (ObjGroup*)malloc(
+            sizeof(ObjGroup)*(objFile->numObjects + 1 + objFile->numGroups)
+        );
+
+    // once again iterate through the file and copy the data
+    rewind(f);
+    prepareForProcessing(objFile);
+
+    while (NULL != fgets(line, MAX_STRING_LENGTH, f))
+    {
+        updateFile(objFile, line);
+    }    
+
+    // clean up
+    fclose(f);
+
+    // return result
+    *file = objFile;
+}
+
 void prepareForProcessing(ObjFile* file)
 {
     // set the zero's element of [positions] to the zero vector
@@ -875,6 +927,7 @@ void resetGlobalState()
     currentMaterial = 0;
     currentObject = NULL;
     currentGroup = NULL;
+    path = NULL;
 }
 
 /* count the materials int a file */
@@ -920,7 +973,7 @@ void readMaterials(ObjFile* file, FILE* f)
     rewind(f);
 
 	char line[MAX_STRING_LENGTH];
- 	
+ 	char* tline;
     // first material is a default material
     initMaterial(&file->materials[0]);
 
@@ -928,30 +981,32 @@ void readMaterials(ObjFile* file, FILE* f)
 
 	while (NULL != fgets(line, MAX_STRING_LENGTH, f))
 	{
+        tline = trimBeginning(line);
+        
 		char name[MAX_STRING_LENGTH];		
 
         // read in the material name
-		if (strstr(line, "newmtl") == line) 
+		if (strstr(tline, "newmtl") == tline) 
 		{
 			file->numMaterials++;		
 
             // initialize the new material
             initMaterial(&file->materials[file->numMaterials - 1]);
 
-            // copy the name from the line
-		   	if (sscanf(line, "newmtl %s", name) == 1)
+            // copy the name from the tline
+		   	if (sscanf(tline, "newmtl %s", name) == 1)
 			{
 				strcpy(file->materials[file->numMaterials - 1].name, name);
 			}
 		}
 
 		// read in ambient 
-		if (strstr(line, "Ka") == line) 
+		if (strstr(tline, "Ka") == tline) 
 		{
 			ObjVector3F ambient;
 
 			int n = sscanf(
-					line, 
+					tline, 
 					"Ka %f %f %f",
 					&ambient.x, 
 					&ambient.y, 
@@ -965,12 +1020,12 @@ void readMaterials(ObjFile* file, FILE* f)
 		}
 
 		// read diffuse
-		if (strstr(line, "Kd") == line) 
+		if (strstr(tline, "Kd") == tline) 
 		{
 			ObjVector3F diffuse;
 
 			int n = sscanf(
-					line, 
+					tline, 
 					"Kd %f %f %f",
 					&diffuse.x, 
 					&diffuse.y, 
@@ -984,12 +1039,12 @@ void readMaterials(ObjFile* file, FILE* f)
 		}
 		
 		// read specular
-		if (strstr(line, "Ks") == line) 
+		if (strstr(tline, "Ks") == tline) 
 		{
 			ObjVector3F specular;
 
 			int n = sscanf(
-					line, 
+					tline, 
 					"Ks %f %f %f",
 					&specular.x, 
 					&specular.y, 
@@ -1003,22 +1058,22 @@ void readMaterials(ObjFile* file, FILE* f)
 		}
 		
 		// read shininess
-		if (strstr(line, "Ns") == line) 
+		if (strstr(tline, "Ns") == tline) 
 		{
 			float shininess;
 
-		    if (sscanf(line, "Ns %f", &shininess) == 1) 
+		    if (sscanf(tline, "Ns %f", &shininess) == 1) 
 		    {
 		        file->materials[file->numMaterials - 1].shininess = shininess; 
 		    }
 		}
 
 		// read ambient tex
-		if (strstr(line, "map_Ka") == line) 
+		if (strstr(tline, "map_Ka") == tline) 
 		{
 			char name[MAX_STRING_LENGTH];			
 
-		    if (sscanf(line, "map_Ka %s", name) == 1) 
+		    if (sscanf(tline, "map_Ka %s", name) == 1) 
 		    {
 		        strcpy(
 					file->materials[file->numMaterials - 1].ambientTex, 
@@ -1028,11 +1083,11 @@ void readMaterials(ObjFile* file, FILE* f)
 		}
 
 		// read diffuse tex
-		if (strstr(line, "map_Kd") == line) 
+		if (strstr(tline, "map_Kd") == tline) 
 		{
 			char name[MAX_STRING_LENGTH];
 
-		    if (sscanf(line, "map_Kd %s", name) == 1) 
+		    if (sscanf(tline, "map_Kd %s", name) == 1) 
 		    {
 		        strcpy(
                     file->materials[file->numMaterials - 1].diffuseTex, 
@@ -1042,11 +1097,11 @@ void readMaterials(ObjFile* file, FILE* f)
 		}
 
 		// read specular tex
-		if (strstr(line, "map_Ks") == line) 
+		if (strstr(tline, "map_Ks") == tline) 
 		{
 		    char name[MAX_STRING_LENGTH];
 
-			if (sscanf(line, "map_Ks %s", name) == 1) 
+			if (sscanf(tline, "map_Ks %s", name) == 1) 
 			{
 			    strcpy(
 					file->materials[file->numMaterials - 1].specularTex, 
@@ -1060,9 +1115,10 @@ void readMaterials(ObjFile* file, FILE* f)
 
 void readMtlFile(ObjFile* file, const char* line)
 {
-    // add the materials of the material file that is identified by line to
-    // our ObjFile.
- 
+    /* add the materials of the material file that is identified by line to
+    ** our ObjFile.
+    */
+    
     // if materials have been allocated already free them and replace them
     if (file->materials != NULL)
     {
@@ -1074,6 +1130,29 @@ void readMtlFile(ObjFile* file, const char* line)
     char name[MAX_STRING_LENGTH];
     int n = sscanf(line, "mtllib %s", name);
     printf("%s\n", name);
+
+    char fullname[MAX_STRING_LENGTH];
+
+    /* if a path was given include it in the full file name */
+    if (path == NULL)
+    {
+        strcpy(fullname, name);
+    }
+    else
+    {
+        fullname[0] = '\0';
+        strcat(fullname, path);
+
+        int len = strlen(fullname);
+
+        if (fullname[len - 1] != '/')
+        {
+            fullname[len] = '/';
+            fullname[len + 1] = '\0';
+        }
+
+        strcat(fullname, name);
+    }
     
     // return if name was not found
     if (n != 1) 
@@ -1083,7 +1162,7 @@ void readMtlFile(ObjFile* file, const char* line)
 
     // open the file
     FILE* f;
-    f = fopen(name, "r");
+    f = fopen(fullname, "r");
 
     if (f == NULL)
     {
@@ -1101,4 +1180,19 @@ void readMtlFile(ObjFile* file, const char* line)
 
     // clean up
     fclose(f);
+}
+
+char* trimBeginning(const char* string)
+{
+    int i = 0;
+
+    while (!((string[i] >= 'A' && string[i] <= 'Z') || 
+        (string[i] >= 'a' && string[i] <= 'z') || 
+        (string[i] >= '0' && string[i] <= '9')) ||
+        string[i] == '\0' || string[i] == '\0' || string[i] == EOF)
+    {
+        i++;
+    }
+
+    return (char*)(string + i);
 }

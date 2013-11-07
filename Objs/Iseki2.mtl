@@ -1,0 +1,46 @@
+# Blender MTL File: 'iseki.blend'
+# Material Count: 4
+
+newmtl material_0
+Ns 7.843137
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 2
+map_Kd meshAvImgTex.wrl_3.bmp
+map_d meshAvImgTex.wrl_3.bmp
+
+newmtl material_1
+Ns 7.843137
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 2
+map_Kd meshAvImgTex.wrl_2.bmp
+map_d meshAvImgTex.wrl_2.bmp
+
+newmtl material_2
+Ns 7.843137
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 2
+map_Kd meshAvImgTex.wrl_0.bmp
+map_d meshAvImgTex.wrl_1.bmp
+
+newmtl material_3
+Ns 7.843137
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 2
+map_Kd meshAvImgTex.wrl_1.bmp
+map_d meshAvImgTex.wrl_1.bmp

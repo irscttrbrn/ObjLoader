@@ -8,3 +8,6 @@ $(TARGET) : Main.c $(OBJ)
 
 %.o: %.cpp
 	$(CC) -c $< $(FLAGS)
+
+clean:
+	rm *.o

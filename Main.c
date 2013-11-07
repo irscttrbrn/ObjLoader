@@ -149,7 +149,7 @@ static void dump(ObjFilePtr file)
 int main(int argc, char const *argv[])
 {
     ObjFilePtr file;
-    ObjFileLoad(&file, "Iseki2.obj");
+    ObjFileLoadWithPath(&file, "sibenik.obj", "Objs");
 
     dump(file);
 
